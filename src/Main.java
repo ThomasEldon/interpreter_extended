@@ -15,7 +15,6 @@ import java.util.HashMap;
 public class Main {
 
     private static Logger logger = LogManager.getLogger(Main.class);
-    private static Logger reader_logger = LogManager.getLogger("MainReader");
 
     Integer code_index = 0;
     ArrayList<String> variable_identifiers = new ArrayList<>();
@@ -25,141 +24,30 @@ public class Main {
 
     boolean ignore_while = false;
 
+    MogusFile mogus;
+
     public static void main(String[] args) {
         System.out.println("Bare Bones Interpreter");
 
         Main main = new Main();
-
-        File path_absolute = new File("prog");
-        try {
-            FileInputStream my_reader = new FileInputStream(path_absolute); //FileReader or Scanner could be used by not working with characters
-
-            main.file_reading_test(my_reader);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
     }
 
-    public void file_reading_test(InputStream file_scanner) throws IOException {
-        int current_cmd = 0; //0 is newline, 1 is clear, 2 is while, 3 is end, 4 is incr, 5 is decr
-        int segment = 0; //1 is identifier, 2 is NOT (while), 3 is 2nd operand (while), 4 is "do" (while)
+    public Main() {
+        MogusFile prog_mog = new MogusFile();
+        mogus = prog_mog;
 
-        StringBuilder identifier = new StringBuilder();
-
-        while (file_scanner.available() > 0) {
-            if (current_cmd==0) {
-                char next = (char) file_scanner.read();
-                reader_logger.debug("Start of command, next byte: " + next + "(" + String.format("%02x", (int) next) + ")");
-                if (next == 0x0A) {
-                    reader_logger.debug("Line feed");
-                } else if (next == 0x0D) {
-                    reader_logger.debug("Carriage return");
-                }
-
-                switch (next) {
-                    case 0x63:
-                        //letter c (clear)
-                        //Advance 5 letters
-                        file_scanner.skip(4);
-                        current_cmd = 1;
-                        break;
-                    case 0x77:
-                        //letter w (while)
-                        file_scanner.skip(4);
-                        current_cmd = 2;
-                        break;
-                    case 0x65:
-                        //letter e (end)
-                        file_scanner.skip(2);
-                        current_cmd = 3;
-                        break;
-                    case 0x69:
-                        //letter i (incr)
-                        file_scanner.skip(3);
-                        current_cmd = 4;
-                        break;
-                    case 0x64:
-                        //letter d (decr)
-                        file_scanner.skip(3);
-                        current_cmd = 5;
-                        break;
-                    default:
-                        reader_logger.debug("Invalid character, skipping ...");
-                }
-
-                //Reset identifier & segment due to new command
-                identifier = new StringBuilder();
-                segment = 0;
-            } else {
-                char cmd_read_byte = (char) file_scanner.read();
-                reader_logger.debug("Processing command " + current_cmd + " with next byte: " + cmd_read_byte + "(" + String.format("%02x", (int) cmd_read_byte) + ")" + " on segment: " + segment);
-
-                if (cmd_read_byte == 0x3b) {
-                    //End of command, save to be processed
-                    process_command(
-                            new Instruction(
-                                    IntprOpcode.values()[current_cmd-1],
-                                    identifier.toString())
-                    );
-
-                    //reset current_cmd to move onto next command
-                    current_cmd = 0;
-                } else if (cmd_read_byte == 0x20) {
-                    //Mark as next
-                    segment += 1;
-                } else {
-                    switch (current_cmd) {
-                        case 1 -> {
-                            identifier.append(cmd_read_byte);
-                        }
-                        case 2 -> {
-                            //While, if whitespace skip and mark
-                            if (segment == 1) {
-                                identifier.append(cmd_read_byte);
-                            } else if (segment == 2) {
-                                //Skip because probably "NOT"
-                                reader_logger.debug("Skipping \"not\" part of while");
-                                file_scanner.skip(2);
-                            } else if (segment == 3) {
-                                //Next chars are probably
-                                if (cmd_read_byte == 0x30) {
-                                    //Is zero, so second operator is likely zero "0"
-                                    reader_logger.debug("valid while loop due to 0");
-                                } else {
-                                    //give error because something should always be 0 here
-                                    reader_logger.debug("Error, should always be zero for second operand of while statement");
-                                }
-                            } else if (segment == 4) {
-                                if (cmd_read_byte == 0x64) {
-                                    reader_logger.debug("\"do\" part of while loop, skipping");
-                                    file_scanner.skip(1);
-                                } else {
-                                    reader_logger.debug("syntax error");
-                                }
-                            }
-                        }
-                        case 3 -> {
-                            //Do nothing
-                            reader_logger.debug("...");
-                        }
-                        case 4 -> {
-                            identifier.append(cmd_read_byte);
-                        }
-                        case 5 -> {
-                            identifier.append(cmd_read_byte);
-                        }
-                    }
-                }
-
-                reader_logger.debug("Current identifier: " + identifier);
-            }
+        while (true) {
+            process_command();
         }
     }
 
+    public void process_command() {
+        //Increment command index
+        code_index += 1;
 
-    public void process_command(Instruction instruction) {
-        System.out.println("Processing command, " + instruction.format_string());
+        Instruction instruction = mogus.read_line(code_index);
+
+        System.out.println("Line: " + code_index + ". Processing command. " + instruction.format_string());
         if (!ignore_while) {
             switch (instruction.opcode) {
                 case clear -> {
@@ -168,17 +56,20 @@ public class Main {
                 case while_ -> {
                     //ensure true
                     if (variables.get(instruction.operand).value != 0) {
-                        //Condition is true
-                        this.while_start_stack.push(code_index);
+                        // Push while start index to the stack
+                        while_start_stack.push(code_index);
+                        if (while_start_stack.size() == 1) {
+                            // if this is the only item in the stack, will always be location to call back to
+                            mogus.set_history(code_index, instruction);
+                        }
                     } else {
                         //Skip everything until next "end"
                         ignore_while = true;
                     }
                 }
                 case end -> {
-                    //Queue instructions from last while statement
-                    while_start_stack.pop();
-                    code_index =
+                    // run instructions from last while statement, when it returns index is pushed back onto stack
+                    code_index = while_start_stack.pop()-1;
                 }
                 case incr -> {
                     modifyVariable(instruction.operand, 1);
@@ -188,17 +79,15 @@ public class Main {
                 }
             }
         } else {
+            System.out.println("ignoring command due to while condition being false");
             if (instruction.opcode == IntprOpcode.end) {
                 ignore_while = false;
                 //carry on as normal...
             }
         }
 
-
-        //Increment command index
-        code_index += 1;
-
         //Print all vars
+        System.out.println("Current stack: " + while_start_stack);
         displayAllVariables();
     }
 
