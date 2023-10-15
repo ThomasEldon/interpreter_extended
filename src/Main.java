@@ -14,20 +14,20 @@ import java.util.HashMap;
 // then press Enter. You can now see whitespace characters in your code.
 public class Main {
 
-    private static Logger logger = LogManager.getLogger(Main.class);
+    private static final Logger logger = LogManager.getLogger(Main.class);
+    private static final Logger logger_interpreter_main = LogManager.getLogger("Interpreter Main");
 
     Integer code_index = 0;
     ArrayList<String> variable_identifiers = new ArrayList<>();
     HashMap<String, IntprVariable> variables = new HashMap<>();
     Deque<Integer> while_start_stack = new ArrayDeque<>();
 
-
     Integer ignore_while = -1; //The line of occurrence of the current skipped while loop
 
     MogusFile mogus;
 
     public static void main(String[] args) {
-        System.out.println("Bare Bones Interpreter");
+        logger.info("Bare Bones Interpreter");
 
         Main main = new Main();
     }
@@ -36,18 +36,21 @@ public class Main {
         MogusFile prog_mog = new MogusFile();
         mogus = prog_mog;
 
-        while (true) {
-            process_command();
-        }
+        while (process_command());
     }
 
-    public void process_command() {
+    public boolean process_command() {
         //Increment command index
         code_index += 1;
 
         Instruction instruction = mogus.read_line(code_index);
 
-        System.out.println("Line: " + code_index + ". Processing command. " + instruction.format_string());
+        if (instruction == null) {
+            logger_interpreter_main.info("No more instructions. Quitting");
+            return false;
+        }
+
+        logger_interpreter_main.debug("Line: " + code_index + ". Processing command. " + instruction.format_string());
 
         switch (instruction.opcode) {
             case clear -> {
@@ -96,10 +99,11 @@ public class Main {
             }
         }
 
-
         //Print all vars
-        System.out.println("Current stack: " + while_start_stack);
+        logger_interpreter_main.debug("Current while stack: " + while_start_stack);
         displayAllVariables();
+
+        return true;
     }
 
     public void modifyVariable(String identifier, Integer amount) {
@@ -114,7 +118,7 @@ public class Main {
 
     public void displayAllVariables() {
         for (String variable_name : variable_identifiers) {
-            System.out.println("Var: " + variable_name
+            logger_interpreter_main.debug("Var: " + variable_name
                     + ". Val: " + this.variables.get(variable_name).value);
         }
     }
@@ -127,17 +131,3 @@ class IntprVariable {
 
     public int value;
 };
-
-class Instruction {
-    IntprOpcode opcode;
-    String operand;
-
-    public Instruction(IntprOpcode opcode, String operand) {
-        this.opcode = opcode;
-        this.operand = operand;
-    }
-
-    public String format_string() {
-        return "Opcode: " + this.opcode.name() + ". Operand: " + this.operand;
-    }
-}

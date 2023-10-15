@@ -9,7 +9,9 @@ import java.util.ArrayList;
 
 public class MogusFile {
 
-    private static Logger reader_logger = LogManager.getLogger("MainReader");
+    private static final Logger reader_file_parsing_logger = LogManager.getLogger("Reader File Parsing");
+    private static final Logger reader_history_logger = LogManager.getLogger("Reader History");
+    private static final Logger reader_instruction_fetch_logger = LogManager.getLogger("Reader Instruction Fetch");
     InputStream file_scanner;
 
     ArrayList<Instruction> instruction_history = new ArrayList<>();
@@ -19,7 +21,7 @@ public class MogusFile {
     public MogusFile() {
         File path_absolute = new File("prog");
         try {
-            this.file_scanner = new FileInputStream(path_absolute); //FileReader or Scanner could be used by not working with characters
+            this.file_scanner = new FileInputStream(path_absolute); // FileReader or Scanner could be used by not working with characters
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -29,43 +31,44 @@ public class MogusFile {
         Instruction inst_ret = null;
         try {
             if (dest_line == (main_file_cur + 1)) {
-                //next line is going to be correct
+                // Line can be read from file!
                 inst_ret = read_line_main_file();
 
-                // line of next instruction to be read into instruction history
-                if (instruction_history_checkpoint != -1) {
-                    if (instruction_history_checkpoint+instruction_history.size() == dest_line) {
-                        //Add instruction being requested to the list as history is on and inst being requested is the same as what's needed
-                        instruction_history.add(inst_ret);
-                    }
+                // Line of next instruction to be read into instruction history
+                if (instruction_history_checkpoint + instruction_history.size() == dest_line) {
+                    // Next instruction being read from file is same as what's needed
+                    instruction_history.add(inst_ret);
                 }
 
                 main_file_cur += 1;
             } else if (dest_line <= main_file_cur) {
-                if (instruction_history_checkpoint != -1) {
-                    if (instruction_history_checkpoint+instruction_history.size() >= dest_line) {
-                        //Line requested exists in the history
-                        inst_ret = instruction_history.get(dest_line-instruction_history_checkpoint);
-                    } else {
-                        System.out.println("impossible error, line too far requested");
-                    }
+                int offset = dest_line - instruction_history_checkpoint;
+                if ((instruction_history.size() > offset) && (offset >= 0)) {
+                    // Line requested exists in the history
+                    inst_ret = instruction_history.get(offset);
                 } else {
-                    System.out.println("error, invalid line requested from program");
+                    reader_instruction_fetch_logger.error("Line requested is not in instruction history!");
                 }
             } else {
-                System.out.println("line requested does not exist in program");
+                reader_instruction_fetch_logger.error("Line requested too far in program!");
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        reader_instruction_fetch_logger.debug("Returning new inst. Current history: " + this.instruction_history);
         return inst_ret;
     }
 
     public void set_history(int new_checkpoint, Instruction current_instr) {
-        this.instruction_history_checkpoint = new_checkpoint;
-        if (main_file_cur == new_checkpoint) {
-            System.out.println("added beginner to inst history");
+        reader_history_logger.debug("Setting history to " + new_checkpoint);
+        if (new_checkpoint > (this.instruction_history_checkpoint + this.instruction_history.size())) {
+            reader_history_logger.debug("Instruction history doesn't contain future instructions, Clearing..");
+            this.instruction_history_checkpoint = new_checkpoint;
+
+            this.instruction_history.clear();
             this.instruction_history.add(current_instr);
+        } else {
+            reader_history_logger.debug("Ignoring new checkpoint as it overlaps current history");
         }
     }
 
@@ -80,11 +83,11 @@ public class MogusFile {
         while (file_scanner.available() > 0) {
             if (current_cmd == 0) {
                 char next = (char) file_scanner.read();
-                reader_logger.debug("Start of command, next byte: " + next + "(" + String.format("%02x", (int) next) + ")");
+                reader_file_parsing_logger.debug("Start of command, next byte: " + next + "(" + String.format("%02x", (int) next) + ")");
                 if (next == 0x0A) {
-                    reader_logger.debug("Line feed");
+                    reader_file_parsing_logger.debug("Line feed");
                 } else if (next == 0x0D) {
-                    reader_logger.debug("Carriage return");
+                    reader_file_parsing_logger.debug("Carriage return");
                 }
 
                 switch (next) {
@@ -115,7 +118,7 @@ public class MogusFile {
                         current_cmd = 5;
                         break;
                     default:
-                        reader_logger.debug("Invalid character, skipping ...");
+                        reader_file_parsing_logger.debug("Invalid character, skipping ...");
                 }
 
                 //Reset identifier & segment due to new command
@@ -123,7 +126,7 @@ public class MogusFile {
                 segment = 0;
             } else {
                 char cmd_read_byte = (char) file_scanner.read();
-                reader_logger.debug("Processing command " + current_cmd + " with next byte: " + cmd_read_byte + "(" + String.format("%02x", (int) cmd_read_byte) + ")" + " on segment: " + segment);
+                reader_file_parsing_logger.debug("Processing command " + current_cmd + " with next byte: " + cmd_read_byte + "(" + String.format("%02x", (int) cmd_read_byte) + ")" + " on segment: " + segment);
 
                 if (cmd_read_byte == 0x3b) {
                     //End of command, save to be processed
@@ -142,29 +145,29 @@ public class MogusFile {
                                 identifier.append(cmd_read_byte);
                             } else if (segment == 2) {
                                 //Skip because probably "NOT"
-                                reader_logger.debug("Skipping \"not\" part of while");
+                                reader_file_parsing_logger.debug("Skipping \"not\" part of while");
                                 file_scanner.skip(2);
                             } else if (segment == 3) {
                                 //Next chars are probably
                                 if (cmd_read_byte == 0x30) {
                                     //Is zero, so second operator is likely zero "0"
-                                    reader_logger.debug("valid while loop due to 0");
+                                    reader_file_parsing_logger.debug("valid while loop due to 0");
                                 } else {
                                     //give error because something should always be 0 here
-                                    reader_logger.debug("Error, should always be zero for second operand of while statement");
+                                    reader_file_parsing_logger.debug("Error, should always be zero for second operand of while statement");
                                 }
                             } else if (segment == 4) {
                                 if (cmd_read_byte == 0x64) {
-                                    reader_logger.debug("\"do\" part of while loop, skipping");
+                                    reader_file_parsing_logger.debug("\"do\" part of while loop, skipping");
                                     file_scanner.skip(1);
                                 } else {
-                                    reader_logger.debug("syntax error");
+                                    reader_file_parsing_logger.debug("syntax error");
                                 }
                             }
                         }
                         case 3 -> {
                             //Do nothing
-                            reader_logger.debug("...");
+                            reader_file_parsing_logger.debug("...");
                         }
                         case 4 -> {
                             identifier.append(cmd_read_byte);
@@ -175,7 +178,7 @@ public class MogusFile {
                     }
                 }
 
-                reader_logger.debug("Current identifier: " + identifier);
+                reader_file_parsing_logger.debug("Current identifier: " + identifier);
             }
         }
         return null;
