@@ -7,18 +7,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 
-public class MogusFile {
+public class InstructionReader {
 
     private static final Logger reader_file_parsing_logger = LogManager.getLogger("Reader File Parsing");
     private static final Logger reader_history_logger = LogManager.getLogger("Reader History");
     private static final Logger reader_instruction_fetch_logger = LogManager.getLogger("Reader Instruction Fetch");
-    InputStream file_scanner;
+    private final InputStream file_scanner;
 
-    ArrayList<Instruction> instruction_history = new ArrayList<>();
-    int main_file_cur = 0;
-    int instruction_history_checkpoint = -1;
+    private ArrayList<Instruction> instruction_history = new ArrayList<>();
+    private int main_file_cur = 0;
+    private int instruction_history_checkpoint = -1;
 
-    public MogusFile() {
+    public InstructionReader() {
         File path_absolute = new File("prog");
         try {
             this.file_scanner = new FileInputStream(path_absolute); // FileReader or Scanner could be used by not working with characters
@@ -73,7 +73,7 @@ public class MogusFile {
     }
 
     // Starting from 1, with 1 being first line
-    public Instruction read_line_main_file() throws IOException {
+    private Instruction read_line_main_file() throws IOException {
 
         int current_cmd = 0; //0 is newline, 1 is clear, 2 is while, 3 is end, 4 is incr, 5 is decr
         int segment = 0; //1 is identifier, 2 is NOT (while), 3 is 2nd operand (while), 4 is "do" (while)

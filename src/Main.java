@@ -1,9 +1,6 @@
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.sql.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -13,33 +10,31 @@ import java.util.HashMap;
 // Press Shift twice to open the Search Everywhere dialog and type `show whitespaces`,
 // then press Enter. You can now see whitespace characters in your code.
 public class Main {
-
     private static final Logger logger = LogManager.getLogger(Main.class);
     private static final Logger logger_interpreter_main = LogManager.getLogger("Interpreter Main");
 
     Integer code_index = 0;
     ArrayList<String> variable_identifiers = new ArrayList<>();
-    HashMap<String, IntprVariable> variables = new HashMap<>();
+    HashMap<String, InterpreterVariable> variables = new HashMap<>();
     Deque<Integer> while_start_stack = new ArrayDeque<>();
 
     Integer ignore_while = -1; //The line of occurrence of the current skipped while loop
 
-    MogusFile mogus;
+    InstructionReader mogus;
 
     public static void main(String[] args) {
         logger.info("Bare Bones Interpreter");
-
         Main main = new Main();
     }
 
     public Main() {
-        MogusFile prog_mog = new MogusFile();
+        InstructionReader prog_mog = new InstructionReader();
         mogus = prog_mog;
 
         while (process_command());
     }
 
-    public boolean process_command() {
+    private boolean process_command() {
         //Increment command index
         code_index += 1;
 
@@ -106,17 +101,17 @@ public class Main {
         return true;
     }
 
-    public void modifyVariable(String identifier, Integer amount) {
+    private void modifyVariable(String identifier, Integer amount) {
         if (this.variables.containsKey(identifier)) {
-            IntprVariable ass = variables.get(identifier);
+            InterpreterVariable ass = variables.get(identifier);
             ass.value = (amount == 0) ? 0 : ass.value + amount;
         } else {
             variable_identifiers.add(identifier);
-            variables.put(identifier, new IntprVariable(amount));
+            variables.put(identifier, new InterpreterVariable(amount));
         }
     }
 
-    public void displayAllVariables() {
+    private void displayAllVariables() {
         for (String variable_name : variable_identifiers) {
             logger_interpreter_main.debug("Var: " + variable_name
                     + ". Val: " + this.variables.get(variable_name).value);
@@ -124,8 +119,8 @@ public class Main {
     }
 }
 
-class IntprVariable {
-    public IntprVariable(int value) {
+class InterpreterVariable {
+    public InterpreterVariable(int value) {
         this.value = value;
     }
 
