@@ -13,8 +13,8 @@ public class MogusFile {
     InputStream file_scanner;
 
     ArrayList<Instruction> instruction_history = new ArrayList<>();
-    Integer main_file_cur = 0;
-    Integer instruction_history_checkpoint = -1;
+    int main_file_cur = 0;
+    int instruction_history_checkpoint = -1;
 
     public MogusFile() {
         File path_absolute = new File("prog");
@@ -61,9 +61,10 @@ public class MogusFile {
         return inst_ret;
     }
 
-    public void set_history(Integer new_checkpoint, Instruction current_instr) {
+    public void set_history(int new_checkpoint, Instruction current_instr) {
         this.instruction_history_checkpoint = new_checkpoint;
-        if (main_file_cur - 1 == new_checkpoint) {
+        if (main_file_cur == new_checkpoint) {
+            System.out.println("added beginner to inst history");
             this.instruction_history.add(current_instr);
         }
     }
