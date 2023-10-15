@@ -4,3 +4,7 @@ while X not 0;
 	while Y not 0;
 	end;
 end;
+while X not 0;
+	while Y not 0;
+	end;
+end;

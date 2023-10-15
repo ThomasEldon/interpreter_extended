@@ -63,7 +63,9 @@ public class MogusFile {
 
     public void set_history(Integer new_checkpoint, Instruction current_instr) {
         this.instruction_history_checkpoint = new_checkpoint;
-        this.instruction_history.add(current_instr);
+        if (main_file_cur - 1 == new_checkpoint) {
+            this.instruction_history.add(current_instr);
+        }
     }
 
     // Starting from 1, with 1 being first line

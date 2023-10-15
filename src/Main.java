@@ -22,7 +22,7 @@ public class Main {
     Deque<Integer> while_start_stack = new ArrayDeque<>();
 
 
-    boolean ignore_while = false;
+    Integer ignore_while = -1; //The line of occurrence of the current skipped while loop
 
     MogusFile mogus;
 
@@ -48,43 +48,54 @@ public class Main {
         Instruction instruction = mogus.read_line(code_index);
 
         System.out.println("Line: " + code_index + ". Processing command. " + instruction.format_string());
-        if (!ignore_while) {
-            switch (instruction.opcode) {
-                case clear -> {
+
+        switch (instruction.opcode) {
+            case clear -> {
+                if (ignore_while == -1) {
                     modifyVariable(instruction.operand, 0);
+
                 }
-                case while_ -> {
-                    //ensure true
+            }
+            case while_ -> {
+                // Push while start index to the stack
+                while_start_stack.push(code_index);
+
+                if (ignore_while == -1) {
                     if (variables.get(instruction.operand).value != 0) {
-                        // Push while start index to the stack
-                        while_start_stack.push(code_index);
                         if (while_start_stack.size() == 1) {
                             // if this is the only item in the stack, will always be location to call back to
                             mogus.set_history(code_index, instruction);
                         }
                     } else {
-                        //Skip everything until next "end"
-                        ignore_while = true;
+                        // Mark current line as the while loop to ignore code starting from
+                        ignore_while = code_index;
                     }
                 }
-                case end -> {
-                    // run instructions from last while statement, when it returns index is pushed back onto stack
-                    code_index = while_start_stack.pop()-1;
-                }
-                case incr -> {
-                    modifyVariable(instruction.operand, 1);
-                }
-                case decr -> {
-                    modifyVariable(instruction.operand, -1);
+            }
+            case end -> {
+                // run instructions from last while statement, when it returns index is pushed back onto stack
+                int line_of_while = while_start_stack.pop();
+                if (ignore_while == -1) {
+                    code_index = line_of_while - 1;
+                } else if (ignore_while == line_of_while) {
+                    //Stop ignoring
+                    ignore_while = -1;
                 }
             }
-        } else {
-            System.out.println("ignoring command due to while condition being false");
-            if (instruction.opcode == IntprOpcode.end) {
-                ignore_while = false;
-                //carry on as normal...
+            case incr -> {
+                if (ignore_while == -1) {
+                    modifyVariable(instruction.operand, 1);
+
+                }
+            }
+            case decr -> {
+                if (ignore_while == -1) {
+                    modifyVariable(instruction.operand, -1);
+
+                }
             }
         }
+
 
         //Print all vars
         System.out.println("Current stack: " + while_start_stack);
@@ -94,7 +105,7 @@ public class Main {
     public void modifyVariable(String identifier, Integer amount) {
         if (this.variables.containsKey(identifier)) {
             IntprVariable ass = variables.get(identifier);
-            ass.value = (amount == 0) ? 0 : ass.value+amount;
+            ass.value = (amount == 0) ? 0 : ass.value + amount;
         } else {
             variable_identifiers.add(identifier);
             variables.put(identifier, new IntprVariable(amount));
@@ -109,17 +120,18 @@ public class Main {
     }
 }
 
-class IntprVariable
-{
+class IntprVariable {
     public IntprVariable(int value) {
         this.value = value;
     }
+
     public int value;
 };
 
-class Instruction{
+class Instruction {
     IntprOpcode opcode;
     String operand;
+
     public Instruction(IntprOpcode opcode, String operand) {
         this.opcode = opcode;
         this.operand = operand;
