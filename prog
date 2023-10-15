@@ -1,0 +1,9 @@
+clear X;
+clear Y;
+clear N;
+clear TestVariable6;
+while X not 0 do;
+    incr X;
+	decr Y;
+	clear TestVariable6;
+end;

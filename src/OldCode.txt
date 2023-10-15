@@ -1,0 +1,94 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+
+public class OldCode {
+
+
+
+    public void run() {
+        File prog = new File("prog");
+
+        try {
+            Scanner myReader = new Scanner(prog);
+            int i = 0;
+            while (myReader.hasNextLine()) {
+                i++;
+                String data = myReader.nextLine();
+                System.out.println(data);
+                Instruction opcode = sanitizeLine(data);
+                switch (opcode.opcode) {
+                    case clear -> {
+                        modifyVariable(opcode.operand, 0);
+                    }
+                    case incr -> {
+                        modifyVariable(opcode.operand, 1);
+                    }
+                    case decr -> {
+                        modifyVariable(opcode.operand, -1);
+                    }
+                    case while_ -> {
+                        //Todo
+                        while_start.push(i);
+                    }
+                    case end -> {
+                        //Todo
+                    }
+
+
+                }
+
+                displayAllVariables();
+
+            }
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+    public Instruction sanitizeLine(String content) {
+        Instruction inst = new Instruction();
+
+        String[] split = content.split(" ");
+
+        String opcode = split[0];
+        switch (opcode) {
+            case "clear":
+                inst.opcode = IntprOpcode.clear;
+                break;
+            case "incr":
+                inst.opcode = IntprOpcode.incr;
+                break;
+            case "decr":
+                inst.opcode = IntprOpcode.decr;
+                break;
+            case "while":
+                inst.opcode = IntprOpcode.while_;
+                break;
+            case "end":
+                inst.opcode = IntprOpcode.end;
+                break;
+            default:
+                System.out.println("Failed to read opcode");
+                return null;
+        }
+
+        if (split.length == 1) {
+            System.out.println("no operand!");
+            return null;
+        }
+
+        for (int i = 0; i < split.length; i++) {
+            System.out.println("n;" + split[i]);
+        }
+//        String final = split[split.length-1];
+
+        inst.operand = split[1];
+
+
+
+        return inst;
+    }
+
+}

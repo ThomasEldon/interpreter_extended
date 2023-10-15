@@ -1,0 +1,16 @@
+<Configuration status="info" name="interpreter" packages="">  //logger context
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="stdout"/>
+        </Root>
+        <Logger name="Main" level="debug" additivity="true">
+        </Logger>
+        <Logger name="MainReader" level="info" additivity="true">
+        </Logger>
+    </Loggers>
+    <Appenders>
+        <Console name="stdout" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %p %m%n"/>
+        </Console>
+    </Appenders>
+</Configuration>
