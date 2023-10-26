@@ -25,6 +25,7 @@ public class Main {
     public static void main(String[] args) {
         logger.info("Bare Bones Interpreter");
         Main main = new Main();
+        //GuiTest test = new GuiTest();
     }
 
     public Main() {
